@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Query, HTTPException
-from get_data_from_researchgate_query import determine_researchgate_browse_type
+from fastapi import FastAPI, Query, HTTPException, Depends
+from get_data_from_researchgate_query import determine_researchgate_browse_type, fetch_researchgate_profile_data
 from get_data_from_linkedin_query import determine_linkedin_browse_type
-from get_data_from_orcid_query import determine_orcid_browse_type
+from get_data_from_orcid_query import determine_orcid_browse_type, fetch_orcid_profile_data
 from pydantic import BaseModel
 import requests
 from openai import OpenAI
@@ -52,7 +52,8 @@ async def researchgate_search(query: str = Query(..., min_length=1, description=
                 browse_type=determine_researchgate_browse_type(link),
             )
             results.append(result)
-        return results
+        results_dict_list = [result.dict() for result in results]
+        return results_dict_list
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Following error while browsing happened: {str(e)}")
@@ -89,7 +90,8 @@ async def linkedin_search(query: str = Query(..., min_length=1, description="Sea
                 browse_type=determine_linkedin_browse_type(link),
             )
             results.append(result)
-        return results
+        results_dict_list = [result.dict() for result in results]
+        return results_dict_list
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Following error while browsing happened: {str(e)}")
@@ -126,7 +128,8 @@ async def orcid_search(query: str = Query(..., min_length=1, description="Search
                 browse_type=determine_orcid_browse_type(link),
             )
             results.append(result)
-        return results
+        results_dict_list = [result.dict() for result in results]
+        return results_dict_list
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Following error while browsing happened: {str(e)}")
@@ -146,17 +149,48 @@ def get_chatgpt_response(prompt: str) -> str:
             model="gpt-4o",
         )
         content = chat_completion.choices[0].message.content
-        print(type(content))
         return content
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error occurred while asking LLM for a keywords: {e}")
 
+# Class for validating input data for post method
+class PromptRequest(BaseModel):
+    prompt: str
 
-# GET METHOD FOR PROMPTING
-@app.get("/chatgpt/")
-async def chatgpt(prompt: str = Query(..., min_length=1, description="Prompt to send to ChatGPT")):
-    answer = get_chatgpt_response(prompt)
-    return answer
+# POST METHOD FOR PROMPTING
+@app.post("/chatgpt/")
+async def chatgpt(
+    request: PromptRequest
+):
+    # Get the answer in a string
+    answer = get_chatgpt_response(request.prompt)
+    
+    # Format the answer from LLM
+    formatted_query = answer.replace(",", "").replace(" ", "+")
+    print(formatted_query)
+    try:
+        orcid_results = await orcid_search(query=formatted_query)
+        linkedin_results = await linkedin_search(query=formatted_query)
+        researchgate_results = await researchgate_search(query=formatted_query)
+        
+        orcid_returned_names = fetch_orcid_profile_data(orcid_results)
+        researchgate_returned_names = fetch_researchgate_profile_data(researchgate_results)
+
+        #print(f"\n{orcid_returned_names}\n") # ['Jan B.F. van Erp', 'Pedro M. Arezes']
+        #print(type(orcid_returned_names)) # lista 
+        
+        # print(linkedin_results)
+        print(f"\n{researchgate_returned_names}\n") # ['Jan B.F. van Erp', 'Pedro M. Arezes']
+        print(type(researchgate_returned_names)) # lista 
+        return {
+            "orcid": orcid_returned_names,
+            "linkedin": linkedin_results,
+            "researchgate": researchgate_returned_names,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error occurred during searches: {e}")
+
 
 #==================== TEST ENDPOINTS ====================#
 @app.get("/")

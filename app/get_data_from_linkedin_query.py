@@ -1,12 +1,12 @@
 def determine_linkedin_browse_type(link: str) -> str:
     """Insert type info based on the string link"""
-    if "company" in link:
+    if "linkedin.com/company/" in link:
         return "company"
-    elif "posts" in link:
+    elif "linkedin.com/posts/" in link:
         return "post"
-    elif "in" in link:
+    elif "linkedin.com/in/" in link:
         return "profile"
-    elif "pulse" in link:
+    elif "linkedin.com/pulse/" in link:
         return "pulse"
     else:
         return "unknown"
