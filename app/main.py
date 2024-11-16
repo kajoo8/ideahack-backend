@@ -4,6 +4,7 @@ from get_data_from_linkedin_query import determine_linkedin_browse_type
 from get_data_from_orcid_query import determine_orcid_browse_type
 from pydantic import BaseModel
 import requests
+from openai import OpenAI
 
 app = FastAPI()
 
@@ -18,6 +19,8 @@ class SearchResult(BaseModel):
     formattedUrl: str
     browse_type: str
 
+
+#==================== GOOGLE SEARCH ENGINE ENDPOINTS ====================#
 @app.get("/researchgatesearch", response_model=list[SearchResult])
 async def researchgate_search(query: str = Query(..., min_length=1, description="Search query for ResearchGate")):
     full_query = f"ResearchGate: {query}"
@@ -129,7 +132,33 @@ async def orcid_search(query: str = Query(..., min_length=1, description="Search
         raise HTTPException(status_code=500, detail=f"Following error while browsing happened: {str(e)}")
 
 
-# Example test endpoint
+#==================== LLM ENDPOINTS ====================#
+def get_chatgpt_response(prompt: str) -> str:
+    client = OpenAI(api_key=open('chatgpt_api_key').read(),)
+
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user", "content": prompt,
+                }
+            ],
+            model="gpt-4o",
+        )
+        content = chat_completion.choices[0].message.content
+        print(type(content))
+        return content
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error occurred while asking LLM for a keywords: {e}")
+
+
+# GET METHOD FOR PROMPTING
+@app.get("/chatgpt/")
+async def chatgpt(prompt: str = Query(..., min_length=1, description="Prompt to send to ChatGPT")):
+    answer = get_chatgpt_response(prompt)
+    return answer
+
+#==================== TEST ENDPOINTS ====================#
 @app.get("/")
 def home():
     return {"message": "API is running. Use /researchgatesearch?query=, /linkedinsearch?query= or /orcidsearch?query= to query."}
