@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Depends
 from get_data_from_researchgate_query import determine_researchgate_browse_type
 from get_data_from_linkedin_query import determine_linkedin_browse_type
 from get_data_from_orcid_query import determine_orcid_browse_type
@@ -147,7 +147,7 @@ def get_chatgpt_response(prompt: str) -> str:
         )
         content = chat_completion.choices[0].message.content
         return content
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error occurred while asking LLM for a keywords: {e}")
 
@@ -157,9 +157,31 @@ class PromptRequest(BaseModel):
 
 # POST METHOD FOR PROMPTING
 @app.post("/chatgpt/")
-async def chatgpt(request: PromptRequest):
+async def chatgpt(
+    request: PromptRequest
+):
+    # Get the answer in a string
     answer = get_chatgpt_response(request.prompt)
-    return answer #<class 'requests.models.Response'>
+    
+    # Format the answer from LLM
+    formatted_query = answer.replace(",", "").replace(" ", "+")
+
+    try:
+        orcid_results = await orcid_search(query=formatted_query)
+        linkedin_results = await linkedin_search(query=formatted_query)
+        researchgate_results = await researchgate_search(query=formatted_query)
+        
+        # print(orcid_results)
+        # print(linkedin_results)
+        # print(researchgate_results)
+        return {
+            "orcid": orcid_results,
+            "linkedin": linkedin_results,
+            "researchgate": researchgate_results,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error occurred during searches: {e}")
+
 
 #==================== TEST ENDPOINTS ====================#
 @app.get("/")
