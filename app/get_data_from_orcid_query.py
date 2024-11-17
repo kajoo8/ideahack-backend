@@ -29,7 +29,10 @@ def fetch_orcid_profile_data(results):
             try:
                 response = requests.get(url)
                 if response.status_code == 200:
-                    profile_data.append(response.json().get("displayName"))  # assuming response is a json
+                    # Extract `displayName` and create JSON
+                    display_name = response.json().get("displayName")
+                    if display_name:  # Ensure displayName is not None
+                        profile_data.append({"name": display_name, "type": "profile", "directLink": result["link"]})
                 else:
                     print(f"Cannot get data from {url}, status: {response.status_code}")
             except Exception as e:

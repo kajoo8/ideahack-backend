@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Depends
 from get_data_from_researchgate_query import determine_researchgate_browse_type, fetch_researchgate_profile_data
-from get_data_from_linkedin_query import determine_linkedin_browse_type
+from get_data_from_linkedin_query import determine_linkedin_browse_type, fetch_linkedin_profile_data
 from get_data_from_orcid_query import determine_orcid_browse_type, fetch_orcid_profile_data
 from pydantic import BaseModel
 import requests
@@ -176,16 +176,20 @@ async def chatgpt(
         
         orcid_returned_names = fetch_orcid_profile_data(orcid_results)
         researchgate_returned_names = fetch_researchgate_profile_data(researchgate_results)
+        linkedin_returned_names = fetch_linkedin_profile_data(linkedin_results)
 
         #print(f"\n{orcid_returned_names}\n") # ['Jan B.F. van Erp', 'Pedro M. Arezes']
         #print(type(orcid_returned_names)) # lista 
         
-        # print(linkedin_results)
-        print(f"\n{researchgate_returned_names}\n") # ['Jan B.F. van Erp', 'Pedro M. Arezes']
-        print(type(researchgate_returned_names)) # lista 
+        #print(f"\n{linkedin_returned_names}\n") # ['imie nazw', 'imie nazw']
+        #print(type(linkedin_returned_names)) # lista
+
+        #print(f"\n{researchgate_returned_names}\n") # ['Jan B.F. van Erp', 'Pedro M. Arezes']
+        #print(type(researchgate_returned_names)) # lista
+
         return {
             "orcid": orcid_returned_names,
-            "linkedin": linkedin_results,
+            "linkedin": linkedin_returned_names,
             "researchgate": researchgate_returned_names,
         }
     except Exception as e:

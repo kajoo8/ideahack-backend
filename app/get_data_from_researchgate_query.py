@@ -17,6 +17,7 @@ def fetch_researchgate_profile_data(results):
         if result.get("browse_type") == "profile":
             link = result.get("link")
             if "/profile/" in link:
-                profile_data.append(link.split("/profile/")[-1].replace("-", " "))
-            
+                name = link.split("/profile/")[-1].replace("-", " ")
+                profile_data.append({"name": name, "type": "profile", "directLink": link})
+
     return profile_data
